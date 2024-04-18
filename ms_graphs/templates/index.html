@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Graph of Muscle Sensor Values</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+    display: flex;
+    flex-direction: row; /* ensure the items are in a row */
+    flex-wrap: wrap; /* allow items to wrap as needed */
+    gap: 20px; /* adjust the gap as needed */
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+}
+.chart-container > div {
+    flex: 1 1 auto; /* Adjust this property as needed */
+    min-width: 200px; /* set a minimum width for each chart */
+}
+canvas {
+    width: 100%;
+    height: auto;
+}
+    </style>
+</head>
+<body>
+
+<div class="chart-container">
+    <div><canvas id="ms_0_chart"></canvas></div>
+    
+    
+    
+</div>
+
+<div class="chart-container">
+    
+    
+    <div><canvas id="ms_1_chart"></canvas></div>
+    
+</div>
+<div class="chart-container">
+    
+    
+    
+    <div><canvas id="ms_2_chart"></canvas></div>
+</div>
+<div class="chart-container">
+    
+    
+    
+    <div><canvas id="ms_3_chart"></canvas></div>
+</div>
+
+<div class="chart-container">
+    
+    
+    
+    <div><canvas id="ms_4_chart"></canvas></div>
+</div>
+<script>
+// Place this inside the <script> tag in your HTML
+    const charts = {};
+const maxDataPoints = 20; // Maximum number of data points to show on the graph
+
+const colors = [ // Define an array of colors for the graphs
+    'rgb(255, 99, 132)', // ms_0
+    'rgb(54, 162, 235)', // ms_1
+    'rgb(255, 206, 86)', // ms_2
+    'rgb(75, 192, 192)', // ms_3
+    'rgb(153, 102, 255)' // ms_4
+];
+
+// Function to initialize a chart for a sensor
+function initializeChart(sensorId, color) {
+    const ctx = document.getElementById(sensorId + '_chart').getContext('2d');
+    charts[sensorId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array(maxDataPoints).fill(''),
+            datasets: [{
+                label: sensorId.toUpperCase(),
+                backgroundColor: color,
+                borderColor: color,
+                data: Array(maxDataPoints).fill(0),
+                fill: false,
+                lineTension: 0.1
+            }]
+        },
+        options: {
+            animation: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Initialize all charts with unique colors
+['ms_0', 'ms_1', 'ms_2', 'ms_3', 'ms_4'].forEach((sensorId, index) => {
+    initializeChart(sensorId, colors[index]);
+});
+
+// The fetchData function remains the same
+// Function to fetch new data and update all charts
+function fetchData() {
+    fetch('/data')
+        .then(response => response.json())
+        .then(newData => {
+            const currentLabel = new Date().toLocaleTimeString();
+            // Iterate over each sensor value and update the corresponding chart
+            for (const sensorId in newData) {
+                const chart = charts[sensorId];
+                if (chart.data.labels.length >= maxDataPoints) {
+                    chart.data.labels.shift(); // Remove the oldest label
+                    chart.data.datasets.forEach(dataset => {
+                        dataset.data.shift(); // Remove the oldest data point
+                    });
+                }
+                chart.data.labels.push(currentLabel); // Add the current time as the new label
+                chart.data.datasets.forEach(dataset => {
+                    dataset.data.push(newData[sensorId]); // Add the new data point
+                });
+                chart.update(); // Update the chart
+            }
+        })
+        .catch(error => console.error('Error fetching data:', error));
+}
+
+// Fetch new data every 200 milliseconds for a more real-time feel
+setInterval(fetchData, 200);
+</script>
+
+</body>
+</html>
