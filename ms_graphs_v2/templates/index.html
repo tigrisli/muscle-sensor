@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Graph of Muscle Sensor Values</title>
+    <!-- Include Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12">
+                <canvas id="combined_chart"></canvas>
+            </div>
+        </div>
+    </div>
+<!-- Use Bootstrap's row and col classes to arrange charts -->
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12"><canvas id="ms_0_chart"></canvas></div>
+        <div class="col-md-12"><canvas id="ms_1_chart"></canvas></div>
+        <div class="col-md-12"><canvas id="ms_2_chart"></canvas></div>
+        <div class="col-md-12"><canvas id="ms_3_chart"></canvas></div>
+    </div>
+    <div class="row">
+        <div class="col-md-3"><canvas id="ms_4_chart"></canvas></div>
+    </div>
+    
+</div>
+
+<script>
+// Place this inside the <script> tag in your HTML
+    const charts = {};
+const maxDataPoints = 20; // Maximum number of data points to show on the graph
+
+const colors = [ // Define an array of colors for the graphs
+    'rgb(255, 99, 132)', // ms_0
+    'rgb(54, 162, 235)', // ms_1
+    'rgb(255, 206, 86)', // ms_2
+    'rgb(75, 192, 192)', // ms_3
+    'rgb(153, 102, 255)' // ms_4
+];
+
+// Function to initialize a chart for a sensor
+function initializeChart(sensorId, color) {
+    const ctx = document.getElementById(sensorId + '_chart').getContext('2d');
+    charts[sensorId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array(maxDataPoints).fill(''),
+            datasets: [{
+                label: sensorId.toUpperCase(),
+                backgroundColor: color,
+                borderColor: color,
+                data: Array(maxDataPoints).fill(0),
+                fill: false,
+                lineTension: 0.1
+            }]
+        },
+        options: {
+            animation: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Initialize all charts with unique colors
+['ms_0', 'ms_1', 'ms_2', 'ms_3', 'ms_4'].forEach((sensorId, index) => {
+    initializeChart(sensorId, colors[index]);
+});
+
+
+function initializeCombinedChart(colors) {
+    const ctx = document.getElementById('combined_chart').getContext('2d');
+    const datasets = colors.map((color, index) => ({
+        label: `MS_${index}`,
+        backgroundColor: color,
+        borderColor: color,
+        data: [],
+        fill: false,
+        lineTension: 0.1
+    }));
+
+    charts.combined = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array(maxDataPoints).fill(''),
+            datasets: datasets
+        },
+        options: {
+            animation: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Initialize the combined chart with unique colors
+initializeCombinedChart(colors);
+
+
+
+// The fetchData function remains the same
+// Function to fetch new data and update all charts
+function fetchData() {
+    fetch('/data')
+        .then(response => response.json())
+        .then(newData => {
+            const currentLabel = new Date().toLocaleTimeString();
+            // Iterate over each sensor value and update the corresponding chart
+            for (const sensorId in newData) {
+                const chart = charts[sensorId];
+                if (chart.data.labels.length >= maxDataPoints) {
+                    chart.data.labels.shift(); // Remove the oldest label
+                    chart.data.datasets.forEach(dataset => {
+                        dataset.data.shift(); // Remove the oldest data point
+                    });
+                }
+                chart.data.labels.push(currentLabel); // Add the current time as the new label
+                chart.data.datasets.forEach(dataset => {
+                    dataset.data.push(newData[sensorId]); // Add the new data point
+                });
+                chart.update(); // Update the chart
+            }
+           // Add new label
+           if (charts.combined.data.labels.length >= maxDataPoints) {
+                charts.combined.data.labels.shift(); // Remove the oldest label if we've reached max data points
+            }
+            charts.combined.data.labels.push(currentLabel);
+
+            // Update each dataset in the combined chart
+            charts.combined.data.datasets.forEach((dataset, index) => {
+                // Push new data or 0 if no data is available
+                const sensorId = `ms_${index}`;
+                const newDataValue = newData.hasOwnProperty(sensorId) ? newData[sensorId] : 0;
+
+                // Add new data and shift old data if necessary
+                if (dataset.data.length >= maxDataPoints) {
+                    dataset.data.shift();
+                }
+                dataset.data.push(newDataValue);
+            });
+
+            // Update the combined chart
+            charts.combined.update(); 
+            
+        })
+        .catch(error => console.error('Error fetching data:', error));
+}
+
+// Fetch new data every 200 milliseconds for a more real-time feel
+setInterval(fetchData, 200);
+</script>
+
+<!-- Optionally include Bootstrap's JavaScript near the end of your pages, right before the closing </body> tag -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.9.1/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+</body>
+</html>
