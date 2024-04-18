@@ -1,1 +1,1 @@
-# visa-muscle-sensor
+# muscle-sensor
